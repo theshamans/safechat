@@ -1,5 +1,6 @@
 package encryption
 
+// phi returns the Euler's totient function of n
 func phi(n *BigInt) *BigInt {
 	result := n.copy()
 	for i := fromInt(2); i.mul(i).compare(n) <= 0; i = i.next() {
@@ -22,6 +23,7 @@ func phi(n *BigInt) *BigInt {
 	return result
 }
 
+// pow returns x^y mod m
 func pow(x, y, m *BigInt) *BigInt {
 	if y.compare(fromInt(0)) == 0 {
 		return fromInt(1)
@@ -42,6 +44,7 @@ func pow(x, y, m *BigInt) *BigInt {
 	}
 }
 
+// modularInverse returns the modular inverse of a mod m, that is the number b such that a*b = 1 mod m
 func modularInverse(a, m *BigInt) *BigInt {
 	return pow(a.copy(), phi(m).prev(), m.copy())
 }
@@ -65,6 +68,7 @@ func isPrime(x *BigInt) bool {
 	return true
 }
 
+// nextPrime returns the next prime number after x
 func nextPrime(x *BigInt) *BigInt {
 	for {
 		x = x.next()
