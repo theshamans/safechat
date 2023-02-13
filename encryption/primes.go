@@ -12,8 +12,6 @@ func generatePrimes(lower, upper uint64) (*BigInt, *BigInt) {
 	if p == q {
 		q = nextPrime(q)
 	}
-	println(p.String())
-	println(q.String())
 	return p, q
 }
 
@@ -29,8 +27,6 @@ func generateKeys(p, q *BigInt) (PrivateKey, PublicKey) {
 		e = e.next().next()
 	}
 	d := modularInverse(e, p.prev().mul(q.prev()))
-	println(d.String())
-	println(e.String())
 	return PrivateKey{n, d}, PublicKey{n, e}
 }
 

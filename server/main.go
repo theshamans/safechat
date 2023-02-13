@@ -7,27 +7,10 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"safechat/common"
 	"time"
 
 	crypt "safechat/encryption"
-)
-
-const (
-	SERVER_HOST = "0.0.0.0"
-	SERVER_PORT = "6699"
-	SERVER_TYPE = "tcp"
-)
-
-const (
-	CLIENT_HELLO byte = 0
-	SERVER_HELLO byte = 1
-	CLIENT_DONE  byte = 2
-	SERVER_DONE  byte = 3
-	ERROR        byte = 4
-	CLIENT_MSG   byte = 5
-	SERVER_MSG   byte = 6
-	CLIENT_CLOSE byte = 7
-	SERVER_CLOSE byte = 8
 )
 
 // ConnState represents the state of the connection with the client.
@@ -69,17 +52,18 @@ func (state *ConnState) getSymKey() *[32]byte {
 	return state.sym
 }
 
+// run is the main function of the server. It accepts client connections and processes their messages.
 func run() error {
 	fmt.Println("Server Running...")
 
-	server, err := net.Listen(SERVER_TYPE, SERVER_HOST+":"+SERVER_PORT)
+	server, err := net.Listen(common.SERVER_TYPE, common.SERVER_BIND+":"+common.SERVER_PORT)
 	if err != nil {
 		fmt.Println("Error listening:", err.Error())
 		return err
 	}
 	defer server.Close()
 
-	fmt.Println("Listening on " + SERVER_HOST + ":" + SERVER_PORT)
+	fmt.Println("Listening on " + common.SERVER_HOST + ":" + common.SERVER_PORT)
 	fmt.Println("Waiting for client...")
 
 	for {
@@ -111,50 +95,56 @@ func processClient(connection net.Conn, state *ConnState) {
 	}()
 
 	for {
-		err := processMessage(connection, state)
+		err, isClosed := processMessage(connection, state)
 		if err != nil {
+			fmt.Printf("an error occured: %v", err)
+			break
+		}
+		if isClosed {
 			break
 		}
 	}
 }
 
-func processMessage(connection net.Conn, state *ConnState) error {
+// processMessage processes a single message from the client and sets the state of the connection if in the middle of the handshake.
+// The bool returned indicates whether the connection has been closed by the client.
+func processMessage(connection net.Conn, state *ConnState) (error, bool) {
 	buffer := make([]byte, 1024*1024)
 	mLen, err := connection.Read(buffer)
 	if err != nil {
-		return err
+		return err, false
 	}
 	if mLen == 0 {
-		return errors.New("Received null message")
+		return errors.New("received null message"), false
 	}
 	header := buffer[0]
 	content := buffer[1:mLen]
 
 	switch header {
-	case CLIENT_HELLO:
+	case common.CLIENT_HELLO:
 		fmt.Println("[client hello]: received client hello")
 		pub, priv := crypt.GenerateKeyPair()
 		err := state.setPrivKey(priv)
 		if err != nil {
-			connection.Write(writeMsg(ERROR, "client hello failed: received hello request twice"))
+			connection.Write(compileMessage(common.ERROR, "client hello failed: received hello request twice"))
 			fmt.Println("[server log] received hello request twice")
 			break
 		}
 
 		pubBytes := pub.Marshal()
-		sends := writeMsg(SERVER_HELLO, string(pubBytes))
+		sends := compileMessage(common.SERVER_HELLO, string(pubBytes))
 
 		connection.Write(sends)
 
-	case CLIENT_DONE:
+	case common.CLIENT_DONE:
 		// At this step it is assumed that the client returned his symmetric
 		// key.
 		symKeyEncrypted := content
-		fmt.Printf("[client done] received encrypted symmetric key: %v\n", symKeyEncrypted)
+		fmt.Printf("[client done] received encrypted symmetric key: %s\n", string(symKeyEncrypted))
 
 		privKey := state.getPrivKey()
 		symKey := privKey.DecryptString(fmt.Sprintf("%s", symKeyEncrypted))
-		fmt.Printf("[client done] decrypted symmetrick key is: %v\n", symKey)
+		fmt.Printf("[client done] decrypted symmetric key is: %v\n", symKey)
 
 		symKey32 := [32]byte{}
 		copy(symKey32[:], symKey[:])
@@ -163,10 +153,10 @@ func processMessage(connection net.Conn, state *ConnState) error {
 
 		time.Sleep(1 * time.Second)
 
-		sends := writeMsg(SERVER_DONE, "")
+		sends := compileMessage(common.SERVER_DONE, "")
 		connection.Write(sends)
 
-	case CLIENT_MSG:
+	case common.CLIENT_MSG:
 		fmt.Printf("[message] received encrypted message: %s\n", base64.URLEncoding.EncodeToString(content))
 		symkey := state.getSymKey()
 		if symkey == nil {
@@ -174,7 +164,7 @@ func processMessage(connection net.Conn, state *ConnState) error {
 			break
 		}
 		if len(content) == 0 {
-			sends := []byte{ERROR}
+			sends := []byte{common.ERROR}
 			sends = append(sends, []byte("there is no point in encrypting null messages")...)
 			connection.Write(sends)
 			break
@@ -182,23 +172,27 @@ func processMessage(connection net.Conn, state *ConnState) error {
 		msg := crypt.DecryptAES(symkey[:], content)
 		fmt.Printf("[message] decrypted message: %s\n", msg)
 
-		sends := []byte{SERVER_MSG}
+		sends := []byte{common.SERVER_MSG}
 		sends = append(sends, content...)
 
 		connection.Write(sends)
-
+	case common.CLIENT_CLOSE:
+		fmt.Println("[client close] received client close")
+		connection.Write(compileMessage(common.SERVER_CLOSE, "bye bye!"))
+		return nil, true
 	default:
 		fmt.Printf("[error] received invalid header")
-		sends := writeMsg(ERROR, "received invalid header")
+		sends := compileMessage(common.ERROR, "received invalid header")
 		connection.Write(sends)
 	}
-	return nil
+	return nil, false
 }
 
-func writeMsg(typ byte, msg string) []byte {
-	sends := []byte{typ}
-	if msg != "" {
-		sends = append(sends, []byte(msg)...)
+// compileMessage writes a message to the client by appending the header and the body of the message
+func compileMessage(header byte, body string) []byte {
+	sends := []byte{header}
+	if body != "" {
+		sends = append(sends, []byte(body)...)
 	}
 	return sends
 }

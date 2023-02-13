@@ -212,6 +212,9 @@ func (a *BigInt) sub(b *BigInt) (result *BigInt) {
 
 // mul returns the BigInt that is the product of the two BigInts.
 func (a *BigInt) mul(b *BigInt) (result *BigInt) {
+	if len(a.digits) == 0 || len(b.digits) == 0 {
+		return zero()
+	}
 	result = &BigInt{
 		digits: make([]int8, len(a.digits)+len(b.digits)-1),
 	}
