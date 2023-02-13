@@ -34,7 +34,7 @@ func pow(x, y, m *BigInt) *BigInt {
 	_, tempmod := p.mul(p).div(m)
 
 	p = tempmod.copy()
-	if y.even() {
+	if y.isEven() {
 		return p
 	} else {
 		_, tempmod := p.mul(x).div(m)
@@ -53,7 +53,7 @@ func isPrime(x *BigInt) bool {
 	if x.compare(fromInt(2)) == 0 {
 		return true
 	}
-	if x.even() {
+	if x.isEven() {
 		return false
 	}
 	for i := fromInt(3); i.mul(i).compare(x) <= 0; i = i.next().next() {
