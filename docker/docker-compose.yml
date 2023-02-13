@@ -9,4 +9,4 @@ services:
     container_name: safechat_server
     restart: always
     ports:
-      - 6699:6699
+      - 2345:2345

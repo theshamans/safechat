@@ -15,6 +15,6 @@ COPY --from=build /main /main
 RUN useradd -m nonroot
 USER nonroot
 
-EXPOSE 6699
+EXPOSE 2345
 
 ENTRYPOINT ["/main"]
