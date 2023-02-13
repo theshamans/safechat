@@ -5,6 +5,7 @@ WORKDIR /app
 COPY go.mod .
 COPY encryption ./encryption
 COPY server ./server
+COPY common ./common
 
 RUN go build -o /main ./server/main.go
 
