@@ -33,7 +33,7 @@ func DecryptAES(key []byte, ciphertext []byte) []byte {
 		panic(err)
 	}
 
-	// The IV needs to be unique, but not secure. Therefore it's common to
+	// The IV needs to be unique, but not secure. Therefore, it's common to
 	// include it at the beginning of the ciphertext.
 	if len(ciphertext) < aes.BlockSize {
 		panic("ciphertext too short")

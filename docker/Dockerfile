@@ -5,6 +5,7 @@ WORKDIR /app
 COPY go.mod .
 COPY encryption ./encryption
 COPY server ./server
+COPY common ./common
 
 RUN go build -o /main ./server/main.go
 
@@ -15,6 +16,6 @@ COPY --from=build /main /main
 RUN useradd -m nonroot
 USER nonroot
 
-EXPOSE 6699
+EXPOSE 2345
 
 ENTRYPOINT ["/main"]
